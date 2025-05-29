@@ -1,3 +1,8 @@
+import { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Customers',
+  description: 'Manage your customers in the dashboard.',
+};
 export default function Page() {
   return (
     // <main className="flex min-h-screen flex-col p-6">
@@ -12,6 +17,6 @@ export default function Page() {
     //     </div>
     //   </div>
     // </main>
-     <p>Customers Page</p>
+    <p>Customers Page</p>
   );
 }
