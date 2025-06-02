@@ -1,22 +1,39 @@
+import { CreateCustomer } from '@/app/ui/customers/buttons';
+import Table from '@/app/ui/customers/table';
+import { lusitana } from '@/app/ui/fonts';
+import Search from '@/app/ui/search';
+import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
 import { Metadata } from 'next';
+import { Suspense } from 'react';
+
 export const metadata: Metadata = {
   title: 'Customers',
   description: 'Manage your customers in the dashboard.',
 };
-export default function Page() {
+export default async function Page(props: {
+  searchParams?: Promise<{ query?: string; page?: string }>;
+}) {
+  // const totalPages = await fetchInvoicesPages(query);
+  const searchParams = await props.searchParams;
+  const query = searchParams?.query || '';
+  const currentPage = Number(searchParams?.page) || 1;
+
   return (
-    // <main className="flex min-h-screen flex-col p-6">
-    //   <div className="flex h-20 shrink-0 items-end rounded-lg bg-blue-500 p-4 md:h-52">
-    //     <h1 className="text-white text-2xl">Dashboard</h1>
-    //   </div>
-    //   <div className="mt-4 flex grow flex-col gap-4 md:flex-row">
-    //     <div className="flex flex-col justify-center gap-6 rounded-lg bg-gray-50 px-6 py-10 md:w-2/5 md:px-20">
-    //       <p className="text-xl text-gray-800 md:text-3xl md:leading-normal">
-    //         Welcome to the Dashboard.
-    //       </p>
-    //     </div>
-    //   </div>
-    // </main>
-    <p>Customers Page</p>
+    <div className="w-full">
+      <div className="flex w-full items-center justify-between">
+        <h1 className={`${lusitana.className} text-2xl`}>Customers Page</h1>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
+        <Search placeholder="Search Customers..." />
+        <CreateCustomer />
+      </div>
+      <Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>
+      <Table query={query} currentPage={currentPage} />
+
+      </Suspense>
+      {/* <div className="mt-5 flex w-full justify-center">
+        <Pagination totalPages={totalPages} />
+      </div> */}
+    </div>
   );
 }

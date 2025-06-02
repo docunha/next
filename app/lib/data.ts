@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 import {
   CustomerField,
+  CustomerForm,
   CustomersTableType,
   InvoiceForm,
   InvoicesTable,
@@ -17,11 +18,11 @@ export async function fetchRevenue() {
     // Don't do this in production :)
 
     console.log('Fetching revenue data...');
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const data = await sql<Revenue[]>`SELECT * FROM revenue`;
 
-    console.log('Data fetch completed after 3 seconds.');
+    // console.log('Data fetch completed after 3 seconds.');
 
     return data;
   } catch (error) {
@@ -214,10 +215,34 @@ export async function fetchFilteredCustomers(query: string) {
       total_pending: formatCurrency(customer.total_pending),
       total_paid: formatCurrency(customer.total_paid),
     }));
+    // console.log('data', data);
+    // console.log('customers', customers);
 
     return customers;
   } catch (err) {
     console.error('Database Error:', err);
     throw new Error('Failed to fetch customer table.');
+  }
+}
+
+export async function fetchCustomerById(id: string) {
+  console.log('id inside fetchCustomerById', id);
+  try {
+    const data = await sql<CustomerForm[]>`
+      SELECT
+        id,
+		    name,
+	  	  email,
+        image_url
+      FROM customers
+      WHERE customers.id = ${id};
+    `;
+
+    console.log('data[0]', data[0]);
+
+    return data[0];
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch invoice.');
   }
 }
