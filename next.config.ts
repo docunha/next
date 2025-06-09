@@ -5,6 +5,19 @@ const nextConfig: NextConfig = {
   //   experimental: {
   //   ppr: 'incremental'
   // }
+  images: {
+    remotePatterns: [
+      {
+        // hostname: '*.ufs.sh',
+        protocol: 'https',
+        // hostname: '**.ufs.sh',
+        hostname: '*.ufs.sh',
+        port: '',
+        // pathname: '/my-bucket/**',
+        search: '',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

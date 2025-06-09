@@ -1,14 +1,16 @@
-import { createUploadthing, type FileRouter } from "uploadthing/next";
-import { UploadThingError } from "uploadthing/server";
+import { createUploadthing, type FileRouter } from 'uploadthing/next';
 
 const f = createUploadthing();
 
-const auth = (req: Request) => ({ id: "fakeId" }); //
+// FileRouter for your app, can contain multiple FileRoutes
+export const ourFileRouter = {
+  // Define as many FileRoutes as you like, each with a unique routeSlug
+  profilePicture: f({
+    image: {
+      maxFileSize: '4MB',
+      maxFileCount: 1,
+    },
+  }).onUploadComplete(async () => {}),
+} satisfies FileRouter;
 
-export const uploadRouter = {
-
-
-    profilePicture: f(["image"])
-    .middleware(({ req }) => auth(req))
-    .onUploadComplete((data) => console.log("file", data)),
-}
+export type OurFileRouter = typeof ourFileRouter;
