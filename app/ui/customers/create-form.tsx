@@ -2,18 +2,26 @@
 
 import { createCustomer, StateCustomer } from '@/app/lib/actions';
 import { Button } from '@/app/ui/button';
-import {
-  EnvelopeIcon,
-  PhotoIcon,
-  UserCircleIcon,
-} from '@heroicons/react/24/outline';
+import { EnvelopeIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+
+import Image from 'next/image';
 import { useActionState } from 'react';
 
 export default function Form() {
   const initialState: StateCustomer = { message: null, errors: {} };
   const [state, formAction] = useActionState(createCustomer, initialState);
-
+  const image_url = '/customers/profile-default.png';
+  // const [image_url, setImage_url] = useState(image_urlDefault);
+  // const { startUpload } = useUploadThing('profilePicture', {
+  //   onClientUploadComplete: (res) => {
+  //     setImage_url(res[0].ufsUrl);
+  //   },
+  //   onUploadError: (error: Error) => {
+  //     // console.error('Upload failed:', error);
+  //     throw new Error('Create failed Customer profile picture');
+  //   },
+  // });
   return (
     <form action={formAction}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
@@ -71,10 +79,46 @@ export default function Form() {
               ))}
           </div>
         </div>
-
-        {/* Image Customer */}
-
+        {/* Customer Image */}
         <div className="mb-4">
+          <label htmlFor="image_url" className="mb-2 block text-sm font-medium">
+            Customer Profile
+          </label>
+          <div className="relative mt-2 rounded-md">
+            <div className="relative">
+              <div className="flex items-center gap-3">
+                <input type="hidden" name="image_url" value={image_url} />
+                {/* <label
+                  style={{
+                    cursor: 'pointer',
+                  }}
+                > */}
+                <Image
+                  src={image_url}
+                  className="rounded-full"
+                  alt={`New customer profile picture`}
+                  width={28}
+                  height={28}
+                />
+                {/* <input
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      // Do something with the file before uploading
+                      // const compressed = await compress(file);
+                      // Then start the upload of the compressed file
+                      await startUpload([file]);
+                    }}
+                  /> */}
+                {/* </label> */}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Image Customer */}
+        {/* <div className="mb-4">
           <label htmlFor="image_url" className="mb-2 block text-sm font-medium">
             Select Image
           </label>
@@ -85,7 +129,7 @@ export default function Form() {
                 name="image_url"
                 type="string"
                 defaultValue=""
-                placeholder="/customers/evil-rabbit.png"
+                placeholder="/customers/profile-default.png"
                 className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
                 aria-describedby="image_url-error"
               />
@@ -100,7 +144,7 @@ export default function Form() {
                 </p>
               ))}
           </div>
-        </div>
+        </div> */}
       </div>
       <div className="mt-6 flex justify-end gap-4">
         <Link
