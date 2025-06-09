@@ -3,8 +3,10 @@ import {
   CustomerField,
   CustomerForm,
   CustomersTableType,
+  ImageToRemove,
   InvoiceForm,
   InvoicesTable,
+  InvoiceToRemove,
   LatestInvoiceRaw,
   Revenue,
 } from './definitions';
@@ -17,7 +19,7 @@ export async function fetchRevenue() {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
 
-    console.log('Fetching revenue data...');
+    // console.log('Fetching revenue data...');
     // await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const data = await sql<Revenue[]>`SELECT * FROM revenue`;
@@ -33,8 +35,8 @@ export async function fetchRevenue() {
 
 export async function fetchLatestInvoices() {
   try {
-    console.log('Fetching LastInvoices data...');
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // console.log('Fetching LastInvoices data...');
+    // await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const data = await sql<LatestInvoiceRaw[]>`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
@@ -59,7 +61,6 @@ export async function fetchCardData() {
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
-    await new Promise((resolve) => setTimeout(resolve, 7000));
 
     const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
     const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
@@ -190,7 +191,12 @@ export async function fetchCustomers() {
   }
 }
 
-export async function fetchFilteredCustomers(query: string) {
+export async function fetchFilteredCustomers(
+  query: string,
+  currentPage: number
+) {
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+
   try {
     const data = await sql<CustomersTableType[]>`
 		SELECT
@@ -208,6 +214,7 @@ export async function fetchFilteredCustomers(query: string) {
         customers.email ILIKE ${`%${query}%`}
 		GROUP BY customers.id, customers.name, customers.email, customers.image_url
 		ORDER BY customers.name ASC
+    LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
 	  `;
 
     const customers = data.map((customer) => ({
@@ -215,9 +222,6 @@ export async function fetchFilteredCustomers(query: string) {
       total_pending: formatCurrency(customer.total_pending),
       total_paid: formatCurrency(customer.total_paid),
     }));
-    // console.log('data', data);
-    // console.log('customers', customers);
-
     return customers;
   } catch (err) {
     console.error('Database Error:', err);
@@ -226,7 +230,6 @@ export async function fetchFilteredCustomers(query: string) {
 }
 
 export async function fetchCustomerById(id: string) {
-  console.log('id inside fetchCustomerById', id);
   try {
     const data = await sql<CustomerForm[]>`
       SELECT
@@ -237,12 +240,56 @@ export async function fetchCustomerById(id: string) {
       FROM customers
       WHERE customers.id = ${id};
     `;
-
-    console.log('data[0]', data[0]);
-
     return data[0];
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch invoice.');
+  }
+}
+
+export async function fetchInvoiceCustomer(id: string) {
+  try {
+    const data = await sql<InvoiceToRemove[]>`
+      SELECT
+        id
+      FROM invoices
+      WHERE customer_id = ${id};
+    `;
+    return data;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch invoice of Customer.');
+  }
+}
+export async function fetchImageUrlCustomer(id: string) {
+  try {
+    const data = await sql<ImageToRemove[]>`
+      SELECT
+        image_url
+      FROM customers
+      WHERE id = ${id};
+    `;
+    return data[0].image_url;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch invoice of Customer.');
+  }
+}
+
+export async function fetchCustomersPages(query: string) {
+  try {
+    const data = await sql`SELECT COUNT(*)
+    FROM customers
+    WHERE
+      customers.name ILIKE ${`%${query}%`} OR
+      customers.email ILIKE ${`%${query}%`}
+  `;
+
+    const totalPages = Math.ceil(Number(data[0].count) / ITEMS_PER_PAGE);
+
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of invoices.');
   }
 }

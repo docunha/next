@@ -93,3 +93,10 @@ export type CustomerForm = {
   email: string;
   image_url: string;
 };
+
+export type InvoiceToRemove = {
+  id: string;
+};
+export type ImageToRemove = {
+  image_url: string;
+};

@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import postgres from 'postgres';
 import { z } from 'zod';
+import { fetchImageUrlCustomer, fetchInvoiceCustomer } from './data';
+import { deleteUTFiles } from './deleteUTFile';
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
 
 const FormSchema = z.object({
@@ -167,8 +169,12 @@ export async function createCustomer(
 }
 
 const UpdateCustomer = FormSchemaCustomer.omit({ id: true });
-export async function updateCustomer( id: string, prevState: StateCustomer, formData: FormData) {
-// export async function updateCustomer(id: string, formData: FormData) {
+export async function updateCustomer(
+  id: string,
+  prevState: StateCustomer,
+  formData: FormData
+) {
+  // export async function updateCustomer(id: string, formData: FormData) {
   const validatedFields = UpdateCustomer.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
@@ -183,7 +189,6 @@ export async function updateCustomer( id: string, prevState: StateCustomer, form
   //Prepare data for insertion into the database
   const { name, email, image_url } = validatedFields.data;
 
-
   try {
     await sql`
     UPDATE customers
@@ -191,8 +196,6 @@ export async function updateCustomer( id: string, prevState: StateCustomer, form
     WHERE id = ${id}
   `;
   } catch (error) {
-    // console.error('Database Error:', error);
-    // throw new Error('Failed to update invoice.');
     return { message: 'Database Error: Failed to Update Customer.' };
   }
 
@@ -201,9 +204,32 @@ export async function updateCustomer( id: string, prevState: StateCustomer, form
 }
 
 export async function deleteCustomer(id: string) {
-  // throw new Error('Failed to Delete Customer');
+  const invoiceToDelete = await fetchInvoiceCustomer(id);
+
+  invoiceToDelete.map((invoice) => {
+    deleteInvoice(invoice.id);
+  });
+
+  const urlCustomer = await fetchImageUrlCustomer(id);
+  if (urlCustomer != '/customers/profile-default.png') {
+    const image_urlToRemove = urlCustomer.substring(urlCustomer.lastIndexOf('/') + 1);
+    deleteUTFiles([image_urlToRemove]);
+  }
+
   await sql`DELETE FROM customers WHERE id = ${id}`;
   revalidatePath('/dashboard/customers');
+}
+
+export async function updateCustomerProfile(id: string, image_url: string) {
+  try {
+    await sql`
+    UPDATE customers
+    SET image_url = ${image_url}
+    WHERE id = ${id}
+  `;
+  } catch (error) {
+    return { message: 'Database Error: Failed to Update Customer profile.' };
+  }
 }
 
 export async function authenticate(
