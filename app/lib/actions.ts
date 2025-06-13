@@ -1,6 +1,7 @@
 'use server';
 
-import { signIn } from '@/auth';
+import { signIn, signOut } from '@/auth';
+import bcrypt from 'bcryptjs';
 import { AuthError } from 'next-auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -8,8 +9,12 @@ import postgres from 'postgres';
 import { z } from 'zod';
 import { fetchImageUrlCustomer, fetchInvoiceCustomer } from './data';
 import { deleteUTFiles } from './deleteUTFile';
+
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
 
+/**
+ * Customer Actions
+ */
 const FormSchema = z.object({
   id: z.string(),
   customerId: z.string({ invalid_type_error: 'Please select a customer.' }),
@@ -23,7 +28,6 @@ const FormSchema = z.object({
 });
 
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
-
 export type State = {
   errors?: {
     customerId?: string[];
@@ -71,7 +75,6 @@ export async function createInvoice(prevState: State, formData: FormData) {
 }
 
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
-
 export async function updateInvoice(
   id: string,
   prevState: State,
@@ -113,7 +116,12 @@ export async function updateInvoice(
 
 export async function deleteInvoice(id: string) {
   // throw new Error('Failed to Delete Invoice');
-  await sql`DELETE FROM invoices WHERE id = ${id}`;
+  try {
+    await sql`DELETE FROM invoices WHERE id = ${id}`;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to delete invoice.');
+  }
   revalidatePath('/dashboard/invoices');
 }
 
@@ -160,10 +168,15 @@ export async function createCustomer(
   }
   const { name, email, image_url } = validatedFields.data;
 
-  await sql`
+  try {
+    await sql`
     INSERT INTO customers (name, email, image_url)
     VALUES (${name}, ${email}, ${image_url})
   `;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to create customer.');
+  }
   revalidatePath('/dashboard/customers');
   redirect('/dashboard/customers');
 }
@@ -212,11 +225,19 @@ export async function deleteCustomer(id: string) {
 
   const urlCustomer = await fetchImageUrlCustomer(id);
   if (urlCustomer != '/customers/profile-default.png') {
-    const image_urlToRemove = urlCustomer.substring(urlCustomer.lastIndexOf('/') + 1);
+    const image_urlToRemove = urlCustomer.substring(
+      urlCustomer.lastIndexOf('/') + 1
+    );
     deleteUTFiles([image_urlToRemove]);
   }
 
-  await sql`DELETE FROM customers WHERE id = ${id}`;
+  try {
+    await sql`DELETE FROM customers WHERE id = ${id}`;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to delete customer.');
+  }
+
   revalidatePath('/dashboard/customers');
 }
 
@@ -249,4 +270,144 @@ export async function authenticate(
     }
     throw error;
   }
+}
+
+/**
+ * User Actions
+ */
+const FormSchemaCreateUser = z.object({
+  id: z.string(),
+  name: z.string().nonempty({ message: 'Please insert a name.' }),
+  email: z
+    .string()
+    .email({
+      message: 'Please insert a valid email address.',
+    })
+    .refine(
+      async (email) => {
+        const isRegistered = await checkIfEmailIsRegistered(email);
+        if (isRegistered) {
+          // toast('`User is already registered with this email: ${email}`');
+        }
+        return !isRegistered;
+      },
+      {
+        message: 'Email is already registered.',
+      }
+    ),
+
+  password: z
+    .string({ required_error: 'Password is required' })
+    .min(1, { message: 'You must enter a password' })
+    .min(6, { message: 'Password is too short' }),
+});
+const FormSchemaUpdateUser = z.object({
+  id: z.string(),
+  name: z.string().nonempty({ message: 'Please insert a name.' }),
+  email: z.string().email({
+    message: 'Please insert a valid email address.',
+  }),
+
+  password: z
+    .string({ required_error: 'Password is required' })
+    .min(1, { message: 'You must enter a password' })
+    .min(6, { message: 'Password is too short' }),
+});
+
+export type StateUser = {
+  errors?: {
+    name?: string[];
+    email?: string[];
+    password?: string[];
+  };
+  message?: string | null;
+};
+
+const CreateUser = FormSchemaCreateUser.omit({ id: true });
+export async function createUser(prevState: StateUser, formData: FormData) {
+  // const validatedFields = CreateUser.safeParse({
+  const validatedFields = await CreateUser.safeParseAsync({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+  });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create Customer.',
+    };
+  }
+  const { name, email, password } = validatedFields.data;
+  const hashedPassword = await bcrypt.hash(password, 8);
+
+  try {
+    await sql`
+      INSERT INTO users (name, email, password)
+      VALUES (${name}, ${email}, ${hashedPassword})
+    `;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to create user.');
+  }
+  revalidatePath('/dashboard/user');
+  redirect('/dashboard/user');
+}
+
+const UpdateUser = FormSchemaUpdateUser.omit({ id: true });
+export async function updateUser(
+  id: string,
+  prevState: StateUser,
+  formData: FormData
+) {
+  const validatedFields = UpdateUser.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+  });
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Update Invoice.',
+    };
+  }
+  //Prepare data for insertion into the database
+  const { name, email, password } = validatedFields.data;
+  const hashedPassword = await bcrypt.hash(password, 8);
+
+  try {
+    await sql`
+    UPDATE users
+    SET name = ${name}, email = ${email}, password = ${hashedPassword}
+    WHERE id = ${id}
+  `;
+  } catch (error) {
+    // console.error('Database Error:', error);
+    // throw new Error('Failed to update invoice.');
+    return { message: 'Database Error: Failed to Update User.' };
+  }
+
+  revalidatePath('/dashboard/user');
+  redirect('/dashboard/user');
+}
+export async function deleteUser(id: string) {
+  console.log('id', 'deleteUser', id);
+
+  try {
+    await sql`DELETE FROM users WHERE id = ${id}`;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to delete user.');
+  }
+  // revalidatePath('/dashboard/customers');
+  await signOut({ redirectTo: '/' });
+}
+export async function checkIfEmailIsRegistered(email: string) {
+  return sql`
+    SELECT COUNT(*) AS count FROM users WHERE email = ${email}
+  `.then((rows) => {
+    const count = Number(rows[0]?.count ?? 0);
+    return count > 0;
+  });
 }
