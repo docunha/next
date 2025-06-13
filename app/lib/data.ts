@@ -9,6 +9,7 @@ import {
   InvoiceToRemove,
   LatestInvoiceRaw,
   Revenue,
+  User,
 } from './definitions';
 import { formatCurrency } from './utils';
 
@@ -291,5 +292,68 @@ export async function fetchCustomersPages(query: string) {
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch total number of invoices.');
+  }
+}
+
+export async function fetchFilteredUsers(query: string) {
+  try {
+    const data = await sql<User[]>`
+		SELECT
+		  id,
+		  name,
+		  email,
+      password
+		FROM users
+		WHERE
+		  name ILIKE ${`%${query}%`} OR
+      email ILIKE ${`%${query}%`}
+	  `;
+    return data;
+  } catch (err) {
+    console.error('Database Error:', err);
+    throw new Error('Failed to fetch users table.');
+  }
+}
+export async function fetchFilteredUsers2(query: string, currentPage: number) {
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  try {
+    const data = await sql<User[]>`
+		SELECT
+		  id,
+		  name,
+		  email,
+      password
+		FROM users
+		WHERE
+		  name ILIKE ${`%${query}%`} OR
+      email ILIKE ${`%${query}%`}
+		GROUP BY id, name, email 
+		ORDER BY name ASC
+    LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
+	  `;
+
+    return data;
+  } catch (err) {
+    console.error('Database Error:', err);
+    throw new Error('Failed to fetch users table.');
+  }
+}
+
+export async function fetchUserById(id: string) {
+  try {
+    const data = await sql<User[]>`
+      SELECT
+        id,
+		    name,
+	  	  email,
+        password
+      FROM users
+      WHERE id = ${id};
+    `;
+    return data[0];
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch User by id.');
   }
 }
