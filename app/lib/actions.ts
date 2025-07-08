@@ -80,8 +80,6 @@ export async function updateInvoice(
   prevState: State,
   formData: FormData
 ) {
-  // export async function updateInvoice(id: string, formData: FormData) {
-
   const validatedFields = UpdateInvoice.safeParse({
     customerId: formData.get('customerId'),
     amount: formData.get('amount'),
@@ -285,7 +283,7 @@ const FormSchemaCreateUser = z.object({
     })
     .refine(
       async (email) => {
-        const isRegistered = await checkIfEmailIsRegistered(email);
+        const isRegistered = await checkEmailRegistered(email);
         if (isRegistered) {
           // toast('`User is already registered with this email: ${email}`');
         }
@@ -311,7 +309,9 @@ const FormSchemaUpdateUser = z.object({
   password: z
     .string({ required_error: 'Password is required' })
     .min(1, { message: 'You must enter a password' })
-    .min(6, { message: 'Password is too short' }),
+    .min(6, { message: 'Password is too short' })
+    .optional()
+    .or(z.literal('')),
 });
 
 export type StateUser = {
@@ -325,7 +325,6 @@ export type StateUser = {
 
 const CreateUser = FormSchemaCreateUser.omit({ id: true });
 export async function createUser(prevState: StateUser, formData: FormData) {
-  // const validatedFields = CreateUser.safeParse({
   const validatedFields = await CreateUser.safeParseAsync({
     name: formData.get('name'),
     email: formData.get('email'),
@@ -374,18 +373,33 @@ export async function updateUser(
   }
   //Prepare data for insertion into the database
   const { name, email, password } = validatedFields.data;
-  const hashedPassword = await bcrypt.hash(password, 8);
 
-  try {
-    await sql`
-    UPDATE users
-    SET name = ${name}, email = ${email}, password = ${hashedPassword}
-    WHERE id = ${id}
-  `;
-  } catch (error) {
-    // console.error('Database Error:', error);
-    // throw new Error('Failed to update invoice.');
-    return { message: 'Database Error: Failed to Update User.' };
+  if (!password) {
+    try {
+      await sql`
+      UPDATE users
+      SET name = ${name}, email = ${email}
+      WHERE id = ${id}
+    `;
+    } catch (error) {
+      // console.error('Database Error:', error);
+      // throw new Error('Failed to update invoice.');
+      return { message: 'Database Error: Failed to Update User.' };
+    }
+  } else {
+    const hashedPassword = await bcrypt.hash(password, 8);
+
+    try {
+      await sql`
+      UPDATE users
+      SET name = ${name}, email = ${email}, password = ${hashedPassword}
+      WHERE id = ${id}
+    `;
+    } catch (error) {
+      // console.error('Database Error:', error);
+      // throw new Error('Failed to update invoice.');
+      return { message: 'Database Error: Failed to Update User.' };
+    }
   }
 
   revalidatePath('/dashboard/user');
@@ -400,10 +414,9 @@ export async function deleteUser(id: string) {
     console.error('Database Error:', error);
     throw new Error('Failed to delete user.');
   }
-  // revalidatePath('/dashboard/customers');
   await signOut({ redirectTo: '/' });
 }
-export async function checkIfEmailIsRegistered(email: string) {
+export async function checkEmailRegistered(email: string) {
   return sql`
     SELECT COUNT(*) AS count FROM users WHERE email = ${email}
   `.then((rows) => {
