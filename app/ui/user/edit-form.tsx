@@ -1,9 +1,5 @@
 'use client';
-import {
-  checkIfEmailIsRegistered,
-  StateUser,
-  updateUser,
-} from '@/app/lib/actions';
+import { StateUser, updateUser } from '@/app/lib/actions';
 import { User } from '@/app/lib/definitions';
 import { Button } from '@/app/ui/button';
 import {
@@ -18,7 +14,6 @@ export default function EditUserForm({ user }: { user: User }) {
   const initialState: StateUser = { message: null, errors: {} };
   const updateUserWithId = updateUser.bind(null, user.id);
   const [state, formAction] = useActionState(updateUserWithId, initialState);
-
 
   return (
     <form action={formAction}>
